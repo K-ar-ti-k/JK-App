@@ -107,6 +107,13 @@
   color: #969bad;
 }
 
+.nav-link > span:not(.nav-badge) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nav-link:hover {
   color: #39415d;
   background: #f7f8fc;
@@ -1154,5 +1161,506 @@ p {
 
   .external-link-button svg {
     flex: 0 0 auto;
+  }
+}
+
+.admin-page {
+  width: 100%;
+}
+
+.admin-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.admin-heading h1,
+.service-not-found h1 {
+  margin-top: 9px;
+  font-family: Manrope, sans-serif;
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -.9px;
+}
+
+.admin-heading p,
+.service-not-found p {
+  margin-top: 6px;
+  color: #858a9d;
+  font-size: 12px;
+}
+
+.service-count {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  color: #636b91;
+  background: #eef0ff;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-storage-notice,
+.admin-error,
+.admin-success {
+  margin-bottom: 15px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.admin-storage-notice {
+  color: #7e683b;
+  background: #fff8e8;
+  border: 1px solid #f4e9c9;
+}
+
+.admin-storage-notice strong {
+  color: #74581e;
+}
+
+.admin-error {
+  color: #a8444e;
+  background: #fff0f1;
+  border: 1px solid #f4d5d9;
+}
+
+.admin-success {
+  color: #267c60;
+  background: #eaf7f2;
+  border: 1px solid #d9efe6;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.service-form {
+  display: grid;
+  gap: 19px;
+}
+
+.admin-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.admin-panel-heading h2 {
+  font-family: Manrope, sans-serif;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.admin-panel-heading p {
+  margin-top: 4px;
+  color: #9599a9;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.admin-form-icon,
+.service-list-icon,
+.empty-services-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #5268e8;
+  background: #eef0ff;
+  border-radius: 9px;
+}
+
+.admin-form-icon {
+  width: 37px;
+  height: 37px;
+}
+
+.admin-form-icon svg {
+  font-size: 20px;
+}
+
+.admin-field {
+  display: grid;
+  gap: 8px;
+  color: #4e536a;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.admin-field input {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  padding: 0 11px;
+  color: #33384f;
+  background: #fff;
+  border: 1px solid #e5e7ef;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.admin-field input::placeholder {
+  color: #a4a8b5;
+}
+
+.admin-field input:focus {
+  border-color: #7888ed;
+  outline: 3px solid #5369e81c;
+}
+
+.admin-field small {
+  color: #9499a9;
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.admin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.admin-primary-button,
+.admin-secondary-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.admin-primary-button {
+  color: #fff;
+  background: #5268e8;
+  border: 1px solid #5268e8;
+}
+
+.admin-primary-button:hover {
+  background: #465bd4;
+}
+
+.admin-secondary-button {
+  color: #6f7488;
+  background: #fff;
+  border: 1px solid #e5e7ef;
+}
+
+.service-list-panel {
+  min-height: 202px;
+}
+
+.service-list-heading {
+  margin-bottom: 13px;
+}
+
+.service-list {
+  display: grid;
+}
+
+.service-list-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 0;
+  border-top: 1px solid #f0f1f5;
+}
+
+.service-list-icon {
+  width: 31px;
+  height: 31px;
+  font-family: Manrope, sans-serif;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.service-list-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.service-list-copy strong {
+  overflow: hidden;
+  color: #454a60;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-list-copy > span {
+  overflow: hidden;
+  color: #9a9eae;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-action-button {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #858a9d;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.service-action-button:hover {
+  color: #5268e8;
+  background: #f1f3ff;
+}
+
+.service-action-button:disabled,
+.admin-primary-button:disabled,
+.admin-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.service-action-button svg {
+  font-size: 16px;
+}
+
+.service-action-button--danger:hover {
+  color: #d65c67;
+  background: #fff0f1;
+}
+
+.empty-services {
+  display: flex;
+  min-height: 145px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-top: 1px solid #f0f1f5;
+  text-align: center;
+}
+
+.empty-services-icon {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 3px;
+}
+
+.empty-services strong {
+  color: #555a70;
+  font-size: 11px;
+}
+
+.empty-services > span:last-child {
+  color: #969aaa;
+  font-size: 9px;
+}
+
+.service-not-found {
+  max-width: 540px;
+  margin: 70px auto;
+  padding: 30px;
+  text-align: center;
+}
+
+.service-not-found .eyebrow {
+  justify-content: center;
+}
+
+.service-not-found h1 {
+  font-size: 21px;
+}
+
+.service-not-found .text-button {
+  margin-top: 16px;
+}
+
+.sign-in-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 0%, #e8ebff 0, transparent 47%),
+    #f6f7fb;
+}
+
+.sign-in-card {
+  display: flex;
+  width: min(100%, 390px);
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 28px 27px;
+  background: #fff;
+  border: 1px solid #eceef4;
+  border-radius: 16px;
+  box-shadow: 0 14px 50px #2d386d10;
+  text-align: center;
+}
+
+.sign-in-mark {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 23px;
+  border-radius: 15px;
+}
+
+.sign-in-mark span {
+  font-family: Manrope, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.6px;
+}
+
+.sign-in-card h1 {
+  margin-top: 11px;
+  font-family: Manrope, sans-serif;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -.7px;
+}
+
+.sign-in-card > p:not(.sign-in-setup-note) {
+  margin-top: 8px;
+  color: #858a9d;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.sign-in-action {
+  display: grid;
+  min-height: 52px;
+  margin-top: 22px;
+  place-items: center;
+}
+
+.google-sign-in-button {
+  display: flex;
+  min-width: 280px;
+  justify-content: center;
+}
+
+.sign-in-loading {
+  color: #666c82;
+  font-size: 11px;
+}
+
+.sign-in-error {
+  width: 100%;
+  margin: 16px 0 0;
+  text-align: left;
+}
+
+.sign-in-setup-note {
+  margin-top: 16px;
+  padding: 10px 12px;
+  color: #86672b;
+  background: #fff8e8;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.sign-in-security {
+  margin-top: 22px;
+  color: #a0a4b1;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.topbar-user {
+  gap: 9px;
+}
+
+.role-badge {
+  padding: 4px 7px;
+  border-radius: 12px;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.role-badge--admin {
+  color: #6b55a4;
+  background: #f1ecff;
+}
+
+.role-badge--user {
+  color: #437b6a;
+  background: #e8f6f0;
+}
+
+.sign-out-button {
+  padding: 5px 0 5px 8px;
+  color: #858a9d;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.sign-out-button:hover {
+  color: #5268e8;
+}
+
+@media (max-width: 650px) {
+  .topbar-user {
+    gap: 5px;
+  }
+
+  .role-badge {
+    display: none;
+  }
+
+  .sign-out-button {
+    padding-left: 4px;
+  }
+}
+
+@media (max-width: 850px) {
+  .admin-layout {
+    grid-template-columns: minmax(250px, .9fr) minmax(0, 1.2fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .admin-heading {
+    align-items: flex-start;
+  }
+
+  .admin-heading h1 {
+    font-size: 21px;
+  }
+
+  .admin-layout {
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  .service-form,
+  .service-list-panel {
+    padding: 16px;
+  }
+
+  .admin-storage-notice,
+  .admin-error,
+  .admin-success {
+    font-size: 10px;
   }
 }

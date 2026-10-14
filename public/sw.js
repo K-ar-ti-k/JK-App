@@ -1,4 +1,4 @@
-const CACHE_NAME = "jk-foundry-app-v2";
+const CACHE_NAME = "jk-foundry-app-v3";
 const APP_SHELL = [
   "/",
   "/index.html",

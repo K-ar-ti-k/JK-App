@@ -2,23 +2,18 @@ import {
   AssessmentOutlined,
   DashboardRounded,
   HelpOutlineRounded,
-  Inventory2Outlined,
   LocalShippingOutlined,
   SettingsOutlined,
+  TuneRounded,
 } from "@mui/icons-material";
 import { NavLink } from "react-router-dom";
-
-const navigation = [
-  { label: "Overview", path: "/", icon: DashboardRounded },
-  { label: "Order status", path: "/order-status", icon: Inventory2Outlined },
-];
 
 const workspaceLinks = [
   { label: "Dispatch", icon: LocalShippingOutlined, badge: "8" },
   { label: "Reports", icon: AssessmentOutlined },
 ];
 
-export default function Sidebar({ open, onClose }) {
+export default function Sidebar({ open, onClose, services, role }) {
   return (
     <>
       {open && <button className="sidebar-backdrop" aria-label="Close menu" onClick={onClose} />}
@@ -36,16 +31,24 @@ export default function Sidebar({ open, onClose }) {
         <div className="sidebar-section">
           <span className="sidebar-label">WORKSPACE</span>
           <nav className="sidebar-nav" aria-label="Main navigation">
-            {navigation.map(({ label, path, icon: Icon }) => (
+            <NavLink
+              className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
+              end
+              onClick={onClose}
+              to="/"
+            >
+              <DashboardRounded />
+              <span>Overview</span>
+            </NavLink>
+            {services.map((service) => (
               <NavLink
-                className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
-                end={path === "/"}
-                key={path}
+                className={({ isActive }) => `nav-link${ isActive ? " nav-link--active" : ""}`}
+                key={service.id}
                 onClick={onClose}
-                to={path}
+                to={`/services/${encodeURIComponent(service.id)}`}
               >
-                <Icon />
-                <span>{label}</span>
+                <LocalShippingOutlined />
+                <span>{service.name}</span>
               </NavLink>
             ))}
             {workspaceLinks.map(({ label, icon: Icon, badge }) => (
@@ -65,6 +68,16 @@ export default function Sidebar({ open, onClose }) {
               <SettingsOutlined />
               <span>Settings</span>
             </button>
+            {role === "admin" && (
+              <NavLink
+                className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
+                onClick={onClose}
+                to="/admin"
+              >
+                <TuneRounded />
+                <span>Manage services</span>
+              </NavLink>
+            )}
             <button className="nav-link" type="button">
               <HelpOutlineRounded />
               <span>Help & support</span>
