@@ -37,8 +37,9 @@ In the Vercel project's **Settings → Environment Variables**, set:
 - `GOOGLE_CLIENT_ID`: the same OAuth client ID, for server-side token verification
 - `APPS_SCRIPT_API_URL`: the deployed Apps Script URL ending in `/exec`
 - `PORTAL_SHARED_SECRET`: the exact same random secret saved in Apps Script
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`: the REST credentials
-  created by the Upstash integration
+- Redis REST credentials from the Vercel/Upstash integration. The app accepts
+  either `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` or the legacy
+  Vercel KV names `KV_REST_API_URL` + `KV_REST_API_TOKEN`.
 - `SESSION_TTL_SECONDS`: optional session lifetime in seconds (default: `604800`,
   seven days; maximum: 30 days)
 

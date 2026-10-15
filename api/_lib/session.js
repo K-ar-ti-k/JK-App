@@ -22,6 +22,20 @@ function requiredEnv(name) {
   return value;
 }
 
+function requiredEnvFrom(names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  const namesText = names.map((name) => `\`${name}\``).join(" or ");
+  const error = new Error(`Server configuration is missing ${namesText}.`);
+  error.statusCode = 503;
+  error.publicMessage = `Server setup is incomplete: add ${namesText} to the Vercel project environment variables.`;
+  throw error;
+}
+
 function sessionSettings() {
   const rawTtl = process.env.SESSION_TTL_SECONDS || String(DEFAULT_SESSION_TTL_SECONDS);
   const ttl = Number(rawTtl);
@@ -102,16 +116,22 @@ export function fail(res, error) {
 }
 
 async function redisCommand(command) {
-  const endpoint = new URL(requiredEnv("UPSTASH_REDIS_REST_URL"));
+  const endpoint = new URL(requiredEnvFrom([
+    "UPSTASH_REDIS_REST_URL",
+    "KV_REST_API_URL",
+  ]));
   if (endpoint.protocol !== "https:") {
-    throw new Error("UPSTASH_REDIS_REST_URL must use HTTPS.");
+    throw new Error("The Redis REST URL must use HTTPS.");
   }
   let response;
   try {
     response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${requiredEnv("UPSTASH_REDIS_REST_TOKEN")}`,
+        Authorization: `Bearer ${requiredEnvFrom([
+          "UPSTASH_REDIS_REST_TOKEN",
+          "KV_REST_API_TOKEN",
+        ])}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(command),
