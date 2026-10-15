@@ -1375,11 +1375,22 @@ p {
   flex-direction: column;
 }
 
+.service-dashboard[hidden] {
+  display: none;
+}
+
 .embed-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-bottom: 18px;
+}
+
+.embed-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .embed-heading h1 {
@@ -1399,6 +1410,8 @@ p {
   font-size: 10px;
   font-weight: 600;
   text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .external-link-button svg {
@@ -1789,6 +1802,20 @@ p {
     align-items: flex-end;
     gap: 10px;
   }
+
+  .embed-actions {
+    gap: 6px;
+  }
+
+  .embed-actions .external-link-button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 0;
+  }
+
 }
 
 @media (max-width: 420px) {

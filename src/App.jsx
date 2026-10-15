@@ -129,6 +129,7 @@ function AppLayout() {
     ? decodeURIComponent(location.pathname.slice("/services/".length))
     : "";
   const selectedService = services.find((service) => service.id === selectedServiceId);
+  const isServiceRoute = Boolean(selectedServiceId);
   const isAdminPage = location.pathname === "/admin";
   const pageTitle = isAdminPage ? "Manage services" : selectedService?.name || "Overview";
 
@@ -246,7 +247,7 @@ function AppLayout() {
           </div>
         </header>
 
-        <main className={selectedService ? "page-content page-content--embed" : "page-content"}>
+        <main className={isServiceRoute ? "page-content page-content--embed" : "page-content"}>
           <Routes>
             <Route path="/" element={<Dashboard services={services} />} />
             <Route
@@ -257,10 +258,14 @@ function AppLayout() {
                   : <Navigate replace to="/" />
               }
             />
-            <Route path="/services/:serviceId" element={<ServiceDashboard services={services} />} />
+            <Route path="/services/:serviceId" element={null} />
             <Route path="/order-status" element={<Navigate replace to="/services/order-status" />} />
             <Route path="*" element={<Navigate replace to="/" />} />
           </Routes>
+          <ServiceDashboard
+            activeServiceId={selectedServiceId}
+            services={services}
+          />
         </main>
       </div>
     </div>
