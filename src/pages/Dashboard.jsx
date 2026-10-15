@@ -29,12 +29,12 @@ const metrics = [
   },
   {
     label: "Pending weight",
-    detail: "Total pending kg",
+    detail: "Known pending kg across open orders",
     icon: LocalShippingOutlined,
   },
   {
     label: "On-time delivery",
-    detail: "Actual date vs promised date",
+    detail: "Completed orders marked on-time by Order Status",
     icon: TaskAltRounded,
   },
 ];
@@ -61,6 +61,17 @@ function numberValue(value) {
   }
   const parsed = Number(String(value ?? "").replaceAll(",", "").trim());
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function deliveryLateValue(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["y", "yes", "true", "1"].includes(normalized)) {
+    return true;
+  }
+  if (["n", "no", "false", "0"].includes(normalized)) {
+    return false;
+  }
+  return null;
 }
 
 function localDateKey(date) {
@@ -126,6 +137,7 @@ function Dashboard({ services }) {
     const weekEndKey = localDateKey(weekEnd);
 
     const openOrders = orders.filter((order) => numberValue(order.pendingKg) > 0);
+    const unknownPendingKgCount = orders.filter((order) => numberValue(order.pendingKg) === null).length;
     const overdueOrders = openOrders.filter((order) => {
       const promisedDate = parseDate(order.promisedDate);
       return promisedDate && localDateKey(promisedDate) < todayKey;
@@ -138,15 +150,16 @@ function Dashboard({ services }) {
       const promisedKey = localDateKey(promisedDate);
       return promisedKey >= todayKey && promisedKey <= weekEndKey;
     });
-    const completedOrders = orders.filter((order) => (
-      numberValue(order.pendingKg) !== null &&
-      numberValue(order.pendingKg) <= 0 &&
-      parseDate(order.actualDate) &&
-      parseDate(order.promisedDate)
-    ));
-    const onTimeCount = completedOrders.filter((order) => (
-      localDateKey(parseDate(order.actualDate)) <= localDateKey(parseDate(order.promisedDate))
-    )).length;
+    const deliveryStatuses = orders
+      .filter((order) => {
+        const pendingKg = numberValue(order.pendingKg);
+        return pendingKg !== null &&
+          pendingKg <= 0 &&
+          parseDate(order.actualDate) &&
+          deliveryLateValue(order.deliveryLate) !== null;
+      })
+      .map((order) => deliveryLateValue(order.deliveryLate));
+    const onTimeCount = deliveryStatuses.filter((isLate) => !isLate).length;
     const recentOrders = [...orders]
       .sort((left, right) => (
         (parseDate(right.orderDate)?.getTime() || 0) -
@@ -159,8 +172,9 @@ function Dashboard({ services }) {
       overdueCount: overdueOrders.length,
       dueSoonCount: dueSoonOrders.length,
       pendingWeight: openOrders.reduce((total, order) => total + numberValue(order.pendingKg), 0),
-      onTimeRate: completedOrders.length
-        ? Math.round((onTimeCount / completedOrders.length) * 100)
+      unknownPendingKgCount,
+      onTimeRate: deliveryStatuses.length
+        ? Math.round((onTimeCount / deliveryStatuses.length) * 100)
         : null,
       recentOrders,
     };
@@ -229,9 +243,14 @@ function Dashboard({ services }) {
                 ? "Connecting securely to the Order Status service."
                 : dataError || "The Order Status service did not return usable order data."}
           </p>
+          {isLoaded && orderSummary.unknownPendingKgCount > 0 && (
+            <p className="overview-data-quality-note">
+              Pending kg is missing for {orderSummary.unknownPendingKgCount.toLocaleString()} record(s); those records are excluded from open-order and pending-weight totals.
+            </p>
+          )}
           {isLoaded && updatedAt && (
             <p className="overview-updated-at">
-              Updated {new Date(updatedAt).toLocaleString()}
+              Data fetched {new Date(updatedAt).toLocaleString()}
             </p>
           )}
         </div>

@@ -8,6 +8,7 @@ import {
 
 const ORDER_STATUS_API_URL = "https://script.google.com/a/macros/jkfoundries.com/s/AKfycbyy9RXEOafUAVQRML2kpyRhxzBL6JHlEXijAhNcyxZe9eK0ehazbpc_a76pkOL9wkjF/exec?api=orders";
 const ALLOWED_RESPONSE_HOSTS = new Set(["script.google.com", "script.googleusercontent.com"]);
+const MAX_SOURCE_ROWS = 100000;
 const MAX_ORDER_RECORDS = 25000;
 
 function unavailable(message) {
@@ -113,11 +114,14 @@ export default async function handler(req, res) {
     if (!Array.isArray(result) && typeof result?.error === "string") {
       throw unavailable(`Order Status Apps Script rejected the signed request: ${result.error}`);
     }
-    if (!Array.isArray(result) || result.length > MAX_ORDER_RECORDS) {
+    if (!Array.isArray(result) || result.length > MAX_SOURCE_ROWS) {
       throw unavailable("The Order Status API must accept signed POST requests and return a JSON array of order records.");
     }
 
     const orders = result.map(sanitizeOrder).filter((order) => order.orderNo);
+    if (orders.length > MAX_ORDER_RECORDS) {
+      throw unavailable(`The Order Status API returned more than ${MAX_ORDER_RECORDS} valid order records.`);
+    }
     sendJson(res, 200, {
       orders,
       updatedAt: new Date().toISOString(),

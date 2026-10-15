@@ -601,6 +601,11 @@ p {
   font-size: 9px;
 }
 
+.overview-data-quality-note {
+  margin-top: 5px;
+  color: #9a6b28 !important;
+}
+
 .overview-notice-missing {
   margin-left: auto;
   color: #9a9eae;
