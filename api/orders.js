@@ -2,6 +2,7 @@ import {
   fail,
   readSession,
   requireMethod,
+  signedParameters,
   sendJson,
 } from "./_lib/session.js";
 
@@ -69,7 +70,12 @@ export default async function handler(req, res) {
     let response;
     try {
       response = await fetch(endpoint, {
-        headers: { Accept: "application/json" },
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+        body: signedParameters("orders", session.email),
         signal: controller.signal,
         redirect: "follow",
       });
@@ -87,7 +93,7 @@ export default async function handler(req, res) {
     }
     const finalUrl = new URL(response.url);
     if (finalUrl.hostname === "accounts.google.com") {
-      throw unavailable("The Order Status API redirected to Google sign-in. The Apps Script JSON endpoint must allow the portal backend to access it.");
+      throw unavailable("The Order Status API redirected to Google sign-in. Deploy its web app with access set to Anyone; the signed request still protects order data.");
     }
     if (finalUrl.protocol !== "https:" || !ALLOWED_RESPONSE_HOSTS.has(finalUrl.hostname)) {
       throw unavailable("The Order Status API redirected to an unexpected destination.");
@@ -99,8 +105,11 @@ export default async function handler(req, res) {
     } catch {
       throw unavailable("The Order Status URL returned a dashboard page instead of JSON data.");
     }
+    if (!Array.isArray(result) && typeof result?.error === "string") {
+      throw unavailable(`Order Status Apps Script rejected the signed request: ${result.error}`);
+    }
     if (!Array.isArray(result) || result.length > MAX_ORDER_RECORDS) {
-      throw unavailable("The Order Status API must return a JSON array of order records.");
+      throw unavailable("The Order Status API must accept signed POST requests and return a JSON array of order records.");
     }
 
     const orders = result.map(sanitizeOrder).filter((order) => order.orderNo);

@@ -250,7 +250,7 @@ function appsScriptSecret() {
   return secret;
 }
 
-function signedParameters(action, email, servicesJson = "") {
+export function signedParameters(action, email, servicesJson = "") {
   const timestamp = String(Date.now());
   const nonce = randomBytes(18).toString("base64url");
   const message = [action, email, timestamp, nonce, servicesJson].join("\n");
