@@ -12,8 +12,11 @@
   inset: 0 auto 0 0;
   display: flex;
   width: 250px;
+  height: 100vh;
+  height: 100dvh;
   flex-direction: column;
-  padding: 27px 16px 18px;
+  overflow: hidden;
+  padding: calc(27px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));
   background: #fff;
   border-right: 1px solid #eceef4;
 }
@@ -42,6 +45,18 @@
   font-size: 21px;
 }
 
+.brand-mark--image {
+  overflow: hidden;
+  background: #fff;
+  box-shadow: none;
+}
+
+.brand-mark--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .brand-copy,
 .profile-copy {
   display: flex;
@@ -67,6 +82,14 @@
   margin-top: 47px;
 }
 
+.sidebar-workspace {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  margin-top: 34px;
+}
+
 .sidebar-label {
   display: block;
   padding: 0 12px;
@@ -80,6 +103,16 @@
   display: grid;
   gap: 5px;
   margin-top: 13px;
+}
+
+.sidebar-workspace .sidebar-nav {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 3px;
+  overscroll-behavior: contain;
+  scrollbar-color: #dfe2ed transparent;
+  scrollbar-width: thin;
 }
 
 .nav-link {
@@ -141,13 +174,12 @@
 }
 
 .sidebar-bottom {
+  flex: 0 0 auto;
   margin-top: auto;
 }
 
-.sidebar-bottom .sidebar-section {
-  display: grid;
-  gap: 5px;
-  margin: 0 0 20px;
+.sidebar-admin {
+  margin-bottom: 14px;
 }
 
 .sidebar-profile {
@@ -291,9 +323,13 @@
 }
 
 .topbar-user-name {
+  max-width: min(25vw, 260px);
+  overflow: hidden;
   color: #555a6e;
   font-size: 11px;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .menu-button {
@@ -381,9 +417,26 @@ p {
   font-weight: 600;
 }
 
+.date-button select {
+  max-width: 132px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+}
+
+.date-button select:focus-visible {
+  outline: 2px solid #aab6ff;
+  outline-offset: 3px;
+}
+
 .date-button svg {
   color: #858ba0;
   font-size: 16px;
+  flex: 0 0 auto;
 }
 
 .date-caret {
@@ -527,6 +580,54 @@ p {
   height: 29px;
 }
 
+.dashboard-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.dashboard-popover {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  min-width: 185px;
+  gap: 8px;
+  padding: 11px;
+  color: #666c82;
+  background: #fff;
+  border: 1px solid #eceef4;
+  border-radius: 9px;
+  box-shadow: 0 8px 24px #252b451a;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.dashboard-popover button {
+  padding: 7px 8px;
+  color: #5268d7;
+  background: #f7f8ff;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+
+.dashboard-popover button:hover {
+  background: #eef0ff;
+}
+
+.delivery-popover strong {
+  color: #44495f;
+  font-size: 11px;
+}
+
+.delivery-popover span {
+  display: block;
+}
+
 .subtle-icon-button svg,
 .row-more svg {
   font-size: 19px;
@@ -648,6 +749,7 @@ p {
 
 .text-button {
   display: inline-flex;
+  min-height: 32px;
   align-items: center;
   gap: 5px;
   padding: 5px 0;
@@ -964,6 +1066,74 @@ p {
   display: none;
 }
 
+.order-details-dialog {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 20px;
+  place-items: center;
+  background: #1d223c66;
+  border: 0;
+}
+
+.order-details-dialog::backdrop {
+  background: transparent;
+}
+
+.order-details-card {
+  width: min(100%, 390px);
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #eceef4;
+  border-radius: 12px;
+  box-shadow: 0 16px 45px #151a3129;
+}
+
+.order-details-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f0f1f5;
+}
+
+.order-details-heading h2 {
+  margin-top: 6px;
+  font-family: Manrope, sans-serif;
+  font-size: 17px;
+}
+
+.order-details-card dl {
+  display: grid;
+  gap: 13px;
+  margin: 16px 0 0;
+}
+
+.order-details-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.order-details-card dt {
+  color: #858a9d;
+}
+
+.order-details-card dd {
+  margin: 0;
+  color: #454a60;
+  font-weight: 600;
+  text-align: right;
+}
+
 @media (min-width: 1500px) {
   .page-content {
     padding-right: 48px;
@@ -1080,16 +1250,19 @@ p {
   }
 
   .date-button {
-    width: 38px;
     flex: 0 0 auto;
-    justify-content: center;
-    padding: 0;
-    overflow: hidden;
-    font-size: 0;
+    gap: 6px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+
+  .date-button select {
+    max-width: 89px;
   }
 
   .date-caret {
-    display: none;
+    margin-left: 0;
+    font-size: 13px;
   }
 
   .stats-grid {
@@ -1161,6 +1334,36 @@ p {
 
   .external-link-button svg {
     flex: 0 0 auto;
+  }
+
+  .topbar {
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .page-content {
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .dashboard-footer {
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 8px;
+  }
+
+  .dashboard-footer > span:last-child {
+    text-align: right;
+  }
+
+  .subtle-icon-button,
+  .row-more {
+    width: 38px;
+    height: 38px;
+  }
+
+  .text-button {
+    min-height: 38px;
   }
 }
 

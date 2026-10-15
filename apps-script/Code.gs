@@ -38,17 +38,27 @@ function doPost(e) {
     lock.waitLock(10000);
     try {
       const sheet = getServicesSheet_();
+      const values = sheet.getDataRange().getDisplayValues();
+      const headers = findHeaders_(values);
       const lastRow = sheet.getLastRow();
-      if (lastRow > 1) {
-        sheet.getRange(2, 1, lastRow - 1, 3).clearContent();
+      const firstDataRow = headers.rowIndex + 2;
+      const rowsToClear = lastRow - firstDataRow + 1;
+      if (rowsToClear > 0) {
+        headers.columns.forEach(function (columnIndex) {
+          sheet.getRange(firstDataRow, columnIndex + 1, rowsToClear, 1).clearContent();
+        });
       }
       if (rows.length) {
-        sheet.getRange(2, 1, rows.length, 3).setNumberFormat("@");
-        sheet.getRange(2, 1, rows.length, 3).setValues(
-          rows.map(function (service, index) {
-            return [String(index + 1), service.name, service.url];
-          }),
-        );
+        const valuesByColumn = [
+          rows.map(function (_, index) { return [String(index + 1)]; }),
+          rows.map(function (service) { return [service.name]; }),
+          rows.map(function (service) { return [service.url]; }),
+        ];
+        headers.columns.forEach(function (columnIndex, position) {
+          const columnRange = sheet.getRange(firstDataRow, columnIndex + 1, rows.length, 1);
+          columnRange.setNumberFormat("@");
+          columnRange.setValues(valuesByColumn[position]);
+        });
       }
     } finally {
       lock.releaseLock();
@@ -97,25 +107,76 @@ function readServices_() {
   const sheet = getServicesSheet_();
   const values = sheet.getDataRange().getDisplayValues();
   if (!values.length) {
-    throw new Error("The Web Master sheet is empty. Add its column headers in row 1.");
+    throw new Error('The "Web Master" tab is empty. Add headers: sr. no., system name, system link.');
   }
 
-  const headers = values[0].slice(0, 3).map(normalizeHeader_);
-  if (headers[0] !== "srno" || headers[1] !== "systemname" || headers[2] !== "systemlink") {
-    throw new Error(
-      'Expected row 1 headers in columns A-C: "sr. no.", "system name", "system link".',
-    );
-  }
+  const headers = findHeaders_(values);
+  const serialColumn = headers.columns[0];
+  const nameColumn = headers.columns[1];
+  const urlColumn = headers.columns[2];
 
-  return values.slice(1)
+  return values.slice(headers.rowIndex + 1)
     .filter(function (row) {
-      return row[1] && row[2];
+      return row[nameColumn] && row[urlColumn];
     })
     .map(function (row) {
-      const name = String(row[1]).trim();
-      const url = validateHttpsUrl_(row[2]);
-      return { id: serviceId_(url), name: name, dashboardUrl: url };
+      const name = String(row[nameColumn]).trim();
+      const rawUrl = String(row[urlColumn]).trim();
+      try {
+        const url = validateHttpsUrl_(rawUrl);
+        return { id: serviceId_(url), name: name, dashboardUrl: url };
+      } catch (error) {
+        const serial = row[serialColumn] ? ' (row ' + row[serialColumn] + ')' : "";
+        throw new Error(
+          'Invalid dashboard link in the "Web Master" tab' + serial +
+            ' for "' + name + '": ' + error.message,
+        );
+      }
     });
+}
+
+function findHeaders_(values) {
+  const headerNames = {
+    serial: ["srno", "serialno", "serialnumber"],
+    name: ["systemname"],
+    url: ["systemlink"],
+  };
+  const maxRowsToCheck = Math.min(values.length, 20);
+
+  for (let rowIndex = 0; rowIndex < maxRowsToCheck; rowIndex += 1) {
+    const rowHeaders = values[rowIndex].map(normalizeHeader_);
+    const columns = [
+      findHeaderColumn_(rowHeaders, headerNames.serial),
+      findHeaderColumn_(rowHeaders, headerNames.name),
+      findHeaderColumn_(rowHeaders, headerNames.url),
+    ];
+    if (columns.every(function (column) { return column !== -1; })) {
+      return { rowIndex: rowIndex, columns: columns };
+    }
+  }
+
+  const preview = values.slice(0, maxRowsToCheck).map(function (row, index) {
+    const cells = row.map(function (value, columnIndex) {
+      return value
+        ? String.fromCharCode(65 + columnIndex) + ': "' + String(value).trim().slice(0, 60) + '"'
+        : "";
+    }).filter(Boolean);
+    return cells.length ? "row " + (index + 1) + " [" + cells.join(", ") + "]" : "";
+  }).filter(Boolean);
+
+  throw new Error(
+    'Could not find the "sr. no.", "system name", and "system link" headers on the "Web Master" tab. ' +
+      (preview.length ? "Found: " + preview.join("; ") : "The first 20 rows are empty."),
+  );
+}
+
+function findHeaderColumn_(rowHeaders, acceptedNames) {
+  for (let columnIndex = 0; columnIndex < rowHeaders.length; columnIndex += 1) {
+    if (acceptedNames.indexOf(rowHeaders[columnIndex]) !== -1) {
+      return columnIndex;
+    }
+  }
+  return -1;
 }
 
 function getServicesSheet_() {

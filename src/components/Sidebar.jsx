@@ -1,26 +1,29 @@
 import {
-  AssessmentOutlined,
   DashboardRounded,
-  HelpOutlineRounded,
-  LocalShippingOutlined,
-  SettingsOutlined,
+  DashboardCustomizeRounded,
   TuneRounded,
 } from "@mui/icons-material";
 import { NavLink } from "react-router-dom";
 
-const workspaceLinks = [
-  { label: "Dispatch", icon: LocalShippingOutlined, badge: "8" },
-  { label: "Reports", icon: AssessmentOutlined },
-];
-
 export default function Sidebar({ open, onClose, services, role }) {
   return (
     <>
-      {open && <button className="sidebar-backdrop" aria-label="Close menu" onClick={onClose} />}
-      <aside className={`sidebar${open ? " sidebar--open" : ""}`}>
+      {open && (
+        <button
+          aria-label="Close menu"
+          className="sidebar-backdrop"
+          onClick={onClose}
+          type="button"
+        />
+      )}
+      <aside
+        aria-label="Workspace sidebar"
+        className={`sidebar${open ? " sidebar--open" : ""}`}
+        id="primary-navigation"
+      >
         <NavLink className="brand" to="/" onClick={onClose}>
-          <span className="brand-mark">
-            <LocalShippingOutlined />
+          <span className="brand-mark brand-mark--image">
+            <img alt="" src="/app-icon-192.png" />
           </span>
           <span className="brand-copy">
             <strong>JK Foundry</strong>
@@ -28,7 +31,7 @@ export default function Sidebar({ open, onClose, services, role }) {
           </span>
         </NavLink>
 
-        <div className="sidebar-section">
+        <div className="sidebar-section sidebar-workspace">
           <span className="sidebar-label">WORKSPACE</span>
           <nav className="sidebar-nav" aria-label="Main navigation">
             <NavLink
@@ -42,33 +45,22 @@ export default function Sidebar({ open, onClose, services, role }) {
             </NavLink>
             {services.map((service) => (
               <NavLink
-                className={({ isActive }) => `nav-link${ isActive ? " nav-link--active" : ""}`}
+                className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
                 key={service.id}
                 onClick={onClose}
                 to={`/services/${encodeURIComponent(service.id)}`}
               >
-                <LocalShippingOutlined />
+                <DashboardCustomizeRounded />
                 <span>{service.name}</span>
               </NavLink>
-            ))}
-            {workspaceLinks.map(({ label, icon: Icon, badge }) => (
-              <button className="nav-link" key={label} onClick={onClose} type="button">
-                <Icon />
-                <span>{label}</span>
-                {badge && <span className="nav-badge">{badge}</span>}
-              </button>
             ))}
           </nav>
         </div>
 
         <div className="sidebar-bottom">
-          <div className="sidebar-section">
-            <span className="sidebar-label">PREFERENCES</span>
-            <button className="nav-link" type="button">
-              <SettingsOutlined />
-              <span>Settings</span>
-            </button>
-            {role === "admin" && (
+          {role === "admin" && (
+            <div className="sidebar-admin">
+              <span className="sidebar-label">ADMINISTRATION</span>
               <NavLink
                 className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
                 onClick={onClose}
@@ -77,19 +69,14 @@ export default function Sidebar({ open, onClose, services, role }) {
                 <TuneRounded />
                 <span>Manage services</span>
               </NavLink>
-            )}
-            <button className="nav-link" type="button">
-              <HelpOutlineRounded />
-              <span>Help & support</span>
-            </button>
-          </div>
+            </div>
+          )}
           <div className="sidebar-profile">
             <div className="profile-avatar">JK</div>
             <div className="profile-copy">
               <strong>JK Foundry</strong>
-              <span>Operations team</span>
+              <span>{role === "admin" ? "Administrator" : "Viewer"}</span>
             </div>
-            <span className="profile-menu">···</span>
           </div>
         </div>
       </aside>

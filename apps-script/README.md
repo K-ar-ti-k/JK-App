@@ -1,7 +1,9 @@
 # JK Foundry services API setup
 
-The API uses the existing spreadsheet's `Web Master` tab. Row 1 must contain these
-headers in columns A-C: `sr. no.`, `system name`, and `system link`. Existing
+The API uses the existing spreadsheet's `Web Master` tab. Its first 20 rows
+must include the headers `sr. no.`, `system name`, and `system link` in any
+columns. The API preserves other columns and locates the service headers when
+reading or writing. Existing
 service rows are available to every signed-in Google user. Only the admin email
 listed in `Code.gs` can change them.
 

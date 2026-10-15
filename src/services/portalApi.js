@@ -28,7 +28,11 @@ export function getPortalServices(credential) {
     const script = document.createElement("script");
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error("The services API did not respond. Check the Apps Script deployment and try again."));
+      reject(
+        new Error(
+          "The Apps Script did not return an API response. In Google Apps Script, deploy a new Web app version with “Execute as: Me” and “Who has access: Anyone”, then update VITE_APPS_SCRIPT_API_URL in Vercel and redeploy. Confirm the URL ends with /exec.",
+        ),
+      );
     }, 20000);
 
     function cleanup() {
@@ -52,7 +56,11 @@ export function getPortalServices(credential) {
 
     script.onerror = () => {
       cleanup();
-      reject(new Error("Could not connect to the Apps Script services API."));
+      reject(
+        new Error(
+          "Google blocked the Apps Script API request. Set the Web app access to Anyone, set execution to Me, and use its deployed /exec URL in Vercel.",
+        ),
+      );
     };
 
     const endpoint = new URL(APPS_SCRIPT_API_URL);

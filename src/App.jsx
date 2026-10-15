@@ -1,4 +1,4 @@
-import { MenuRounded, NotificationsNoneRounded, SearchRounded } from "@mui/icons-material";
+import { MenuRounded } from "@mui/icons-material";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
@@ -107,6 +107,20 @@ function AppLayout() {
   const isAdminPage = location.pathname === "/admin";
   const pageTitle = isAdminPage ? "Manage services" : selectedService?.name || "Overview";
 
+  useEffect(() => {
+    if (!sidebarOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sidebarOpen]);
+
   const handleCredential = async (credential) => {
     setAuth({ status: "loading", error: "" });
     try {
@@ -157,6 +171,8 @@ function AppLayout() {
         <header className="topbar">
           <button
             aria-label="Open navigation"
+            aria-controls="primary-navigation"
+            aria-expanded={sidebarOpen}
             className="icon-button menu-button"
             onClick={() => setSidebarOpen(true)}
             type="button"
@@ -169,14 +185,6 @@ function AppLayout() {
             <strong>{pageTitle}</strong>
           </div>
           <div className="topbar-actions">
-            <button aria-label="Search" className="icon-button" type="button">
-              <SearchRounded />
-            </button>
-            <button aria-label="Notifications" className="icon-button notification-button" type="button">
-              <NotificationsNoneRounded />
-              <span className="notification-dot" />
-            </button>
-            <div className="topbar-divider" />
             <div className="topbar-user">
               <span className="topbar-avatar">{auth.email.slice(0, 1).toUpperCase()}</span>
               <span className="topbar-user-name">{auth.email}</span>
