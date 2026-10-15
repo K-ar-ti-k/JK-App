@@ -14,16 +14,20 @@ const icons = {
   pending: PendingActionsOutlined,
 };
 
-function StatCard({ label, value, change, changeDirection, note, icon }) {
+function StatCard({ label, value, change, changeDirection, note, icon, active = false, onClick }) {
   const Icon = icons[icon];
   const ChangeIcon = changeDirection === "down" ? ArrowDownwardRounded : ArrowUpwardRounded;
 
   return (
-    <article className="stat-card">
+    <button
+      aria-pressed={active}
+      className={`stat-card${active ? " stat-card--active" : ""}`}
+      onClick={onClick}
+      type="button"
+    >
       <div className={`stat-icon stat-icon--${icon}`}><Icon /></div>
       <div className="stat-label-row">
         <span>{label}</span>
-        <span className="stat-dot-menu">···</span>
       </div>
       <div className="stat-value">{value}</div>
       <div className="stat-foot">
@@ -32,7 +36,8 @@ function StatCard({ label, value, change, changeDirection, note, icon }) {
         </span>
         <span>{note}</span>
       </div>
-    </article>
+      <span className="stat-card-action">View matching orders</span>
+    </button>
   );
 }
 

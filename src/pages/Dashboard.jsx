@@ -1,9 +1,11 @@
 import {
   ArrowUpwardRounded,
+  ClearRounded,
   CloseRounded,
   EastRounded,
   MoreHorizRounded,
   NorthEastRounded,
+  SearchRounded,
   ScheduleRounded,
   TaskAltRounded,
   TrendingUpRounded,
@@ -95,7 +97,10 @@ function Dashboard() {
   const [openMenu, setOpenMenu] = useState("");
   const [showAllOrders, setShowAllOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderFilter, setOrderFilter] = useState("all");
+  const [orderSearch, setOrderSearch] = useState("");
   const orderDialogRef = useRef(null);
+  const ordersSectionRef = useRef(null);
   const period = periods[periodKey];
   const chartPoints = period.chart
     .map((value, index) => `${(index * 720) / (period.chart.length - 1)},${128 - value}`)
@@ -109,7 +114,30 @@ function Dashboard() {
       return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     });
   }, [periodKey]);
-  const displayedOrders = showAllOrders ? orders : orders.slice(0, 4);
+  const normalizedOrderSearch = orderSearch.trim().toLowerCase();
+  const filteredOrders = orders.filter((order) => {
+    const matchesStatus = orderFilter === "all" || order.status === orderFilter;
+    const matchesSearch = !normalizedOrderSearch || [order.id, order.client, order.items, order.date, order.status]
+      .some((value) => value.toLowerCase().includes(normalizedOrderSearch));
+    return matchesStatus && matchesSearch;
+  });
+  const displayedOrders = showAllOrders ? filteredOrders : filteredOrders.slice(0, 4);
+  const isOrderFilterActive = orderFilter !== "all" || Boolean(normalizedOrderSearch);
+
+  const selectOrderFilter = (filter) => {
+    setOrderFilter(filter);
+    if (filter === "all") {
+      setOrderSearch("");
+    }
+    setShowAllOrders(true);
+    ordersSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const clearOrderFilters = () => {
+    setOrderFilter("all");
+    setOrderSearch("");
+    setShowAllOrders(false);
+  };
 
   useEffect(() => {
     const dialog = orderDialogRef.current;
@@ -172,35 +200,43 @@ function Dashboard() {
 
       <section aria-label="Key performance indicators" className="stats-grid">
         <StatCard
+          active={orderFilter === "all" && !orderSearch.trim()}
           change={period.orderChange}
           changeDirection="up"
           icon="orders"
           label="Total orders"
           note={period.comparison}
+          onClick={() => selectOrderFilter("all")}
           value={period.total.toLocaleString()}
         />
         <StatCard
+          active={orderFilter === "In transit"}
           change={period.transitChange}
           changeDirection="up"
           icon="transit"
           label="In transit"
           note={period.comparison}
+          onClick={() => selectOrderFilter("In transit")}
           value={period.inTransit.toLocaleString()}
         />
         <StatCard
+          active={orderFilter === "Delivered"}
           change={period.deliveredChange}
           changeDirection="up"
           icon="delivered"
           label="Delivered"
           note={period.comparison}
+          onClick={() => selectOrderFilter("Delivered")}
           value={period.delivered.toLocaleString()}
         />
         <StatCard
+          active={orderFilter === "Processing"}
           change={period.pendingChange}
           changeDirection="down"
           icon="pending"
           label="Pending"
           note={period.comparison}
+          onClick={() => selectOrderFilter("Processing")}
           value={period.pending.toLocaleString()}
         />
       </section>
@@ -301,18 +337,51 @@ function Dashboard() {
         </article>
       </section>
 
-      <section className="panel orders-panel">
+      <section className="panel orders-panel" ref={ordersSectionRef}>
         <div className="panel-heading orders-heading">
           <div>
-            <h2>Recent orders</h2>
-            <p>A quick look at your latest shipments</p>
+            <h2>{orderFilter === "all" ? "Orders" : `${orderFilter === "Processing" ? "Pending" : orderFilter} orders`}</h2>
+            <p aria-live="polite">
+              {filteredOrders.length} sample {filteredOrders.length === 1 ? "order" : "orders"}
+              {isOrderFilterActive ? " match your filters" : " shown"}
+            </p>
           </div>
-          <button
-            aria-expanded={showAllOrders}
-            className="text-button"
-            onClick={() => setShowAllOrders((current) => !current)}
-            type="button"
-          >{showAllOrders ? "Show recent orders" : "View all orders"} <EastRounded /></button>
+          <div className="orders-heading-actions">
+            {filteredOrders.length > 4 && (
+              <button
+                aria-expanded={showAllOrders}
+                className="text-button"
+                onClick={() => setShowAllOrders((current) => !current)}
+                type="button"
+              >{showAllOrders ? "Show recent" : "View all"} <EastRounded /></button>
+            )}
+            {isOrderFilterActive && (
+              <button className="text-button clear-filters-button" onClick={clearOrderFilters} type="button">
+                Clear filters <ClearRounded />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="orders-toolbar">
+          <label className="orders-search">
+            <SearchRounded />
+            <input
+              aria-label="Search orders by order number, client, quantity, date, or status"
+              onChange={(event) => setOrderSearch(event.target.value)}
+              placeholder="Search order or client"
+              type="search"
+              value={orderSearch}
+            />
+          </label>
+          <label className="orders-status-filter">
+            <span>Status</span>
+            <select aria-label="Filter orders by status" onChange={(event) => setOrderFilter(event.target.value)} value={orderFilter}>
+              <option value="all">All statuses</option>
+              <option value="In transit">In transit</option>
+              <option value="Processing">Pending</option>
+              <option value="Delivered">Delivered</option>
+            </select>
+          </label>
         </div>
         <div className="table-scroll">
           <table className="orders-table">
@@ -320,16 +389,20 @@ function Dashboard() {
               <tr><th>ORDER</th><th>CLIENT</th><th>QUANTITY</th><th>DATE</th><th>STATUS</th><th /></tr>
             </thead>
             <tbody>
-              {displayedOrders.map((order) => (
-                <tr key={order.id}>
-                  <td><span className="order-number">{order.id}</span></td>
-                  <td><span className={`client-avatar client-avatar--${order.color}`}>{order.initials}</span><span className="client-name">{order.client}</span></td>
-                  <td>{order.items}</td>
-                  <td className="order-date">{order.date}</td>
-                  <td><span className={`status-pill status-pill--${order.status.toLowerCase().replace(" ", "-")}`}><i />{order.status}</span></td>
-                  <td><button aria-label={`View details for ${order.id}`} className="row-more" onClick={() => setSelectedOrder(order)} type="button"><MoreHorizRounded /></button></td>
+              {displayedOrders.length > 0 ? displayedOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td><span className="order-number">{order.id}</span></td>
+                    <td><span className={`client-avatar client-avatar--${order.color}`}>{order.initials}</span><span className="client-name">{order.client}</span></td>
+                    <td>{order.items}</td>
+                    <td className="order-date">{order.date}</td>
+                    <td><span className={`status-pill status-pill--${order.status.toLowerCase().replace(" ", "-")}`}><i />{order.status}</span></td>
+                    <td><button aria-label={`View details for ${order.id}`} className="row-more" onClick={() => setSelectedOrder(order)} type="button"><MoreHorizRounded /></button></td>
+                  </tr>
+                )) : (
+                <tr>
+                  <td className="orders-empty-state" colSpan="6">No sample orders match. Try another search or clear the filters.</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
