@@ -3,10 +3,13 @@ import {
   Inventory2Outlined,
   LocalShippingOutlined,
   OpenInNewRounded,
+  RefreshRounded,
   ScheduleRounded,
   TaskAltRounded,
   WarningAmberRounded,
 } from "@mui/icons-material";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getPortalOrders } from "../services/portalApi";
 
 const metrics = [
   {
@@ -36,8 +39,140 @@ const metrics = [
   },
 ];
 
+function parseDate(value) {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
+    if (dateOnly) {
+      const [, year, month, day] = dateOnly;
+      const date = new Date(Number(year), Number(month) - 1, Number(day));
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function numberValue(value) {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+  const parsed = Number(String(value ?? "").replaceAll(",", "").trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function localDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDate(value) {
+  const date = parseDate(value);
+  return date
+    ? date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    : "—";
+}
+
 function Dashboard({ services }) {
   const orderStatusService = services.find((service) => /order[\s-]*status/i.test(service.name));
+  const [orders, setOrders] = useState([]);
+  const [dataStatus, setDataStatus] = useState("loading");
+  const [dataError, setDataError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    getPortalOrders()
+      .then((result) => {
+        if (!cancelled) {
+          setOrders(result.orders);
+          setUpdatedAt(result.updatedAt);
+          setDataStatus("loaded");
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setOrders([]);
+          setDataError(error.message);
+          setDataStatus("unavailable");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadOrders = useCallback(async () => {
+    setDataStatus("loading");
+    setDataError("");
+    try {
+      const result = await getPortalOrders();
+      setOrders(result.orders);
+      setUpdatedAt(result.updatedAt);
+      setDataStatus("loaded");
+    } catch (error) {
+      setOrders([]);
+      setDataError(error.message);
+      setDataStatus("unavailable");
+    }
+  }, []);
+
+  const orderSummary = useMemo(() => {
+    const today = new Date();
+    const todayKey = localDateKey(today);
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const weekEndKey = localDateKey(weekEnd);
+
+    const openOrders = orders.filter((order) => numberValue(order.pendingKg) > 0);
+    const overdueOrders = openOrders.filter((order) => {
+      const promisedDate = parseDate(order.promisedDate);
+      return promisedDate && localDateKey(promisedDate) < todayKey;
+    });
+    const dueSoonOrders = openOrders.filter((order) => {
+      const promisedDate = parseDate(order.promisedDate);
+      if (!promisedDate) {
+        return false;
+      }
+      const promisedKey = localDateKey(promisedDate);
+      return promisedKey >= todayKey && promisedKey <= weekEndKey;
+    });
+    const completedOrders = orders.filter((order) => (
+      numberValue(order.pendingKg) !== null &&
+      numberValue(order.pendingKg) <= 0 &&
+      parseDate(order.actualDate) &&
+      parseDate(order.promisedDate)
+    ));
+    const onTimeCount = completedOrders.filter((order) => (
+      localDateKey(parseDate(order.actualDate)) <= localDateKey(parseDate(order.promisedDate))
+    )).length;
+    const recentOrders = [...orders]
+      .sort((left, right) => (
+        (parseDate(right.orderDate)?.getTime() || 0) -
+        (parseDate(left.orderDate)?.getTime() || 0)
+      ))
+      .slice(0, 8);
+
+    return {
+      openCount: openOrders.length,
+      overdueCount: overdueOrders.length,
+      dueSoonCount: dueSoonOrders.length,
+      pendingWeight: openOrders.reduce((total, order) => total + numberValue(order.pendingKg), 0),
+      onTimeRate: completedOrders.length
+        ? Math.round((onTimeCount / completedOrders.length) * 100)
+        : null,
+      recentOrders,
+    };
+  }, [orders]);
+  const isLoaded = dataStatus === "loaded";
+  const metricValues = [
+    isLoaded ? orderSummary.openCount.toLocaleString() : "—",
+    isLoaded ? orderSummary.overdueCount.toLocaleString() : "—",
+    isLoaded ? orderSummary.dueSoonCount.toLocaleString() : "—",
+    isLoaded ? `${orderSummary.pendingWeight.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg` : "—",
+    isLoaded && orderSummary.onTimeRate !== null ? `${orderSummary.onTimeRate}%` : "—",
+  ];
 
   return (
     <div className="dashboard-page">
@@ -60,61 +195,133 @@ function Dashboard({ services }) {
       </section>
 
       <section aria-label="Order metrics" className="overview-metrics-grid">
-        {metrics.map(({ label, detail, icon: Icon }) => (
+        {metrics.map(({ label, detail, icon: Icon }, index) => (
           <article className="overview-metric-card" key={label}>
             <span className="overview-metric-icon"><Icon /></span>
             <div className="overview-metric-heading">
               <h2>{label}</h2>
-              <span className="overview-unavailable-badge">Unavailable</span>
+              <span className={`overview-unavailable-badge${isLoaded ? " overview-available-badge" : ""}`}>
+                {isLoaded ? "Live" : dataStatus === "loading" ? "Loading" : "Unavailable"}
+              </span>
             </div>
-            <p className="overview-metric-value" aria-label={`${label}: data unavailable`}>—</p>
+            <p className="overview-metric-value">{metricValues[index]}</p>
             <p className="overview-metric-detail">{detail}</p>
           </article>
         ))}
       </section>
 
-      <section aria-live="polite" className="panel overview-data-notice" role="status">
-        <span className="overview-notice-icon"><ScheduleRounded /></span>
+      <section aria-live="polite" className={`panel overview-data-notice${dataStatus === "unavailable" ? " overview-data-notice--warning" : ""}`} role="status">
+        <span className="overview-notice-icon">
+          {dataStatus === "loaded" ? <TaskAltRounded /> : <ScheduleRounded />}
+        </span>
         <div>
-          <h2>Order data isn&apos;t connected yet</h2>
+          <h2>
+            {dataStatus === "loaded"
+              ? "Order data loaded"
+              : dataStatus === "loading"
+                ? "Loading Order Status data…"
+                : "Order data is unavailable"}
+          </h2>
           <p>
-            The Order Status dashboard currently provides a web page, not a data feed the portal can read.
-            These metrics will remain unavailable until an authenticated data endpoint is connected.
+            {dataStatus === "loaded"
+              ? `${orders.length.toLocaleString()} order records loaded from the Order Status service.`
+              : dataStatus === "loading"
+                ? "Connecting securely to the Order Status service."
+                : dataError || "The Order Status service did not return usable order data."}
           </p>
+          {isLoaded && updatedAt && (
+            <p className="overview-updated-at">
+              Updated {new Date(updatedAt).toLocaleString()}
+            </p>
+          )}
         </div>
-        {orderStatusService ? (
-          <a
-            aria-label="Open Order Status dashboard in a new tab"
+        <div className="overview-notice-actions">
+          <button
+            aria-label="Retry loading order data"
             className="overview-notice-link"
-            href={orderStatusService.dashboardUrl}
-            rel="noreferrer"
-            target="_blank"
-            title="Open Order Status dashboard"
+            disabled={dataStatus === "loading"}
+            onClick={loadOrders}
+            title="Retry"
+            type="button"
           >
-            <OpenInNewRounded />
-          </a>
-        ) : (
-          <span className="overview-notice-missing">Order Status service not configured</span>
-        )}
+            <RefreshRounded />
+          </button>
+          {orderStatusService && (
+            <a
+              aria-label="Open Order Status dashboard in a new tab"
+              className="overview-notice-link"
+              href={orderStatusService.dashboardUrl}
+              rel="noreferrer"
+              target="_blank"
+              title="Open Order Status dashboard"
+            >
+              <OpenInNewRounded />
+            </a>
+          )}
+        </div>
       </section>
 
       <section className="panel overview-orders-panel">
         <div className="panel-heading">
           <div>
             <h2>Order activity</h2>
-            <p>Recent order records will appear here when the data feed is connected.</p>
+            <p>Latest orders from the Order Status service.</p>
           </div>
         </div>
-        <div className="overview-empty-state">
-          <Inventory2Outlined />
-          <strong>No order records available</strong>
-          <span>We haven&apos;t loaded any order data, so no sample records are shown.</span>
-        </div>
+        {isLoaded && orderSummary.recentOrders.length > 0 ? (
+          <div className="table-scroll">
+            <table className="orders-table overview-order-table">
+              <thead>
+                <tr><th>ORDER</th><th>CLIENT</th><th>ORDER DATE</th><th>PROMISED</th><th>PENDING KG</th><th>STATUS</th></tr>
+              </thead>
+              <tbody>
+                {orderSummary.recentOrders.map((order) => {
+                  const pendingKg = numberValue(order.pendingKg);
+                  const promisedDate = parseDate(order.promisedDate);
+                  const isOverdue = pendingKg > 0 && promisedDate && localDateKey(promisedDate) < localDateKey(new Date());
+                  const status = pendingKg === null
+                    ? "Unknown"
+                    : pendingKg <= 0
+                      ? "Completed"
+                      : isOverdue
+                        ? "Overdue"
+                        : "Open";
+                  return (
+                    <tr key={order.orderNo}>
+                      <td><span className="order-number">{order.orderNo}</span></td>
+                      <td><span className="client-name">{order.clientName || "—"}</span></td>
+                      <td className="order-date">{formatDate(order.orderDate)}</td>
+                      <td className="order-date">{formatDate(order.promisedDate)}</td>
+                      <td>{pendingKg === null ? "—" : pendingKg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                      <td><span className={`status-pill status-pill--${status.toLowerCase()}`}><i />{status}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overview-empty-state">
+            <Inventory2Outlined />
+            <strong>
+              {dataStatus === "loading"
+                ? "Loading order records…"
+                : isLoaded
+                  ? "No order records returned"
+                  : "No order records available"}
+            </strong>
+            <span>
+              {isLoaded
+                ? "The Order Status API returned no order records."
+                : "Order records will appear here when the service provides valid JSON data."}
+            </span>
+          </div>
+        )}
       </section>
 
       <footer className="dashboard-footer">
-        <span>Order Status data source: {orderStatusService ? orderStatusService.name : "not configured"}</span>
-        <span>Live data not connected</span>
+        <span>Order Status data source: {orderStatusService ? orderStatusService.name : "configured API"}</span>
+        <span>{isLoaded ? `${orders.length.toLocaleString()} orders` : "Live data unavailable"}</span>
       </footer>
     </div>
   );

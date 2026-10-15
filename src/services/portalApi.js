@@ -63,3 +63,11 @@ export async function savePortalServices(services) {
   });
   return validateUser(result);
 }
+
+export async function getPortalOrders() {
+  const result = await request("/api/orders");
+  if (!Array.isArray(result?.orders) || typeof result.updatedAt !== "string") {
+    throw new Error("The portal API returned invalid order data.");
+  }
+  return result;
+}
