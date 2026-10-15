@@ -1,12 +1,10 @@
-const CACHE_NAME = "jk-foundry-app-v3";
+const CACHE_NAME = "jk-foundry-app-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
-  "/app-icon.svg",
   "/app-icon-192.png",
   "/app-icon-512.png",
-  "/favicon.svg",
 ];
 
 self.addEventListener("install", (event) => {

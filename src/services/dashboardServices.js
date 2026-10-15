@@ -1,1 +1,0 @@
-export { savePortalServices } from "./portalApi";
