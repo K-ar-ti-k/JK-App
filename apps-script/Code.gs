@@ -23,6 +23,10 @@ function doGet(e) {
 function doPost(e) {
   try {
     const parameters = e && e.parameter ? e.parameter : {};
+    if (parameters.portalAction) {
+      return json_(handlePortalRequest_(parameters));
+    }
+
     const user = authenticate_(parameters.credential);
     if (user.role !== "admin") {
       throw new Error("Only an authorized administrator can manage services.");
@@ -34,39 +38,147 @@ function doPost(e) {
     }
 
     const rows = validateServices_(services);
-    const lock = LockService.getScriptLock();
-    lock.waitLock(10000);
-    try {
-      const sheet = getServicesSheet_();
-      const values = sheet.getDataRange().getDisplayValues();
-      const headers = findHeaders_(values);
-      const lastRow = sheet.getLastRow();
-      const firstDataRow = headers.rowIndex + 2;
-      const rowsToClear = lastRow - firstDataRow + 1;
-      if (rowsToClear > 0) {
-        headers.columns.forEach(function (columnIndex) {
-          sheet.getRange(firstDataRow, columnIndex + 1, rowsToClear, 1).clearContent();
-        });
-      }
-      if (rows.length) {
-        const valuesByColumn = [
-          rows.map(function (_, index) { return [String(index + 1)]; }),
-          rows.map(function (service) { return [service.name]; }),
-          rows.map(function (service) { return [service.url]; }),
-        ];
-        headers.columns.forEach(function (columnIndex, position) {
-          const columnRange = sheet.getRange(firstDataRow, columnIndex + 1, rows.length, 1);
-          columnRange.setNumberFormat("@");
-          columnRange.setValues(valuesByColumn[position]);
-        });
-      }
-    } finally {
-      lock.releaseLock();
-    }
-
+    writeServices_(rows);
     return json_({ ok: true, count: rows.length });
   } catch (error) {
     return json_({ ok: false, error: publicError_(error) });
+  }
+}
+
+function handlePortalRequest_(parameters) {
+  const user = authenticatePortalRequest_(parameters);
+  const action = parameters.portalAction;
+  if (action === "read") {
+    return {
+      ok: true,
+      email: user.email,
+      role: user.role,
+      services: readServices_(),
+    };
+  }
+  if (action !== "write") {
+    throw new Error("Unsupported portal API action.");
+  }
+  if (user.role !== "admin") {
+    throw new Error("Only an authorized administrator can manage services.");
+  }
+
+  let services;
+  try {
+    services = JSON.parse(parameters.portalServices || "");
+  } catch {
+    throw new Error("Services must be a valid JSON list.");
+  }
+  if (!Array.isArray(services)) {
+    throw new Error("Services must be a list.");
+  }
+  const rows = validateServices_(services);
+  writeServices_(rows);
+  return {
+    ok: true,
+    email: user.email,
+    role: user.role,
+    services: readServices_(),
+  };
+}
+
+function authenticatePortalRequest_(parameters) {
+  const email = String(parameters.portalEmail || "").trim().toLowerCase();
+  const timestamp = String(parameters.portalTimestamp || "");
+  const nonce = String(parameters.portalNonce || "");
+  const action = String(parameters.portalAction || "");
+  const services = String(parameters.portalServices || "");
+  const signature = String(parameters.portalSignature || "");
+  const sharedSecret = PropertiesService.getScriptProperties()
+    .getProperty("PORTAL_SHARED_SECRET");
+  const timestampNumber = Number(timestamp);
+
+  if (
+    !sharedSecret ||
+    sharedSecret.length < 32 ||
+    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ||
+    !/^\d{13}$/.test(timestamp) ||
+    !Number.isFinite(timestampNumber) ||
+    Math.abs(Date.now() - timestampNumber) > 5 * 60 * 1000 ||
+    !/^[A-Za-z0-9_-]{20,40}$/.test(nonce) ||
+    !/^[A-Za-z0-9_-]{40,50}$/.test(signature) ||
+    (action !== "read" && action !== "write") ||
+    (action === "read" && services !== "")
+  ) {
+    throw new Error("The portal request could not be authenticated.");
+  }
+
+  const message = [action, email, timestamp, nonce, services].join("\n");
+  const expected = Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(
+      message,
+      sharedSecret,
+      Utilities.Charset.UTF_8,
+    ),
+  ).replace(/=+$/g, "");
+  if (!constantTimeEquals_(signature, expected)) {
+    throw new Error("The portal request could not be authenticated.");
+  }
+
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "portal-request:" + signature;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    if (cache.get(cacheKey)) {
+      throw new Error("This portal request has already been used.");
+    }
+    cache.put(cacheKey, "1", 300);
+  } finally {
+    lock.releaseLock();
+  }
+
+  const isAdmin = CONFIG.adminEmails.some(function (adminEmail) {
+    return adminEmail.toLowerCase() === email;
+  });
+  return { email: email, role: isAdmin ? "admin" : "user" };
+}
+
+function constantTimeEquals_(left, right) {
+  if (left.length !== right.length) {
+    return false;
+  }
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+function writeServices_(rows) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getServicesSheet_();
+    const values = sheet.getDataRange().getDisplayValues();
+    const headers = findHeaders_(values);
+    const lastRow = sheet.getLastRow();
+    const firstDataRow = headers.rowIndex + 2;
+    const rowsToClear = lastRow - firstDataRow + 1;
+    if (rowsToClear > 0) {
+      headers.columns.forEach(function (columnIndex) {
+        sheet.getRange(firstDataRow, columnIndex + 1, rowsToClear, 1).clearContent();
+      });
+    }
+    if (rows.length) {
+      const valuesByColumn = [
+        rows.map(function (_, index) { return [String(index + 1)]; }),
+        rows.map(function (service) { return [service.name]; }),
+        rows.map(function (service) { return [service.url]; }),
+      ];
+      headers.columns.forEach(function (columnIndex, position) {
+        const columnRange = sheet.getRange(firstDataRow, columnIndex + 1, rows.length, 1);
+        columnRange.setNumberFormat("@");
+        columnRange.setValues(valuesByColumn[position]);
+      });
+    }
+  } finally {
+    lock.releaseLock();
   }
 }
 

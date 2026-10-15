@@ -1,1 +1,1 @@
-export { getPortalServices, savePortalServices } from "./portalApi";
+export { savePortalServices } from "./portalApi";

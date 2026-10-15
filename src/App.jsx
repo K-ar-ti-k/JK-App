@@ -6,23 +6,22 @@ import Sidebar from "./components/Sidebar";
 import Admin from "./pages/Admin";
 import Dashboard from "./pages/Dashboard";
 import ServiceDashboard from "./pages/ServiceDashboard";
-import { getPortalServices, savePortalServices } from "./services/dashboardServices";
-import { APPS_SCRIPT_API_URL, GOOGLE_CLIENT_ID } from "./services/portalApi";
+import {
+  createPortalSession,
+  destroyPortalSession,
+  GOOGLE_CLIENT_ID,
+  restorePortalSession,
+  savePortalServices,
+} from "./services/portalApi";
 import "./App.css";
 
-function GoogleSignIn({ onCredential, onPromptFinished }) {
+function GoogleSignIn({ onCredential }) {
   const buttonRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
-  const onPromptFinishedRef = useRef(onPromptFinished);
-  const hasPromptedRef = useRef(false);
 
   useEffect(() => {
     onCredentialRef.current = onCredential;
   }, [onCredential]);
-
-  useEffect(() => {
-    onPromptFinishedRef.current = onPromptFinished;
-  }, [onPromptFinished]);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) {
@@ -30,9 +29,6 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
     }
 
     let cancelled = false;
-    const promptTimeout = window.setTimeout(() => {
-      onPromptFinishedRef.current();
-    }, 12000);
     let script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
     const renderButton = () => {
       if (cancelled || !buttonRef.current || !window.google?.accounts?.id) {
@@ -40,7 +36,6 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
       }
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
-        auto_select: true,
         callback: (response) => onCredentialRef.current(response.credential),
       });
       buttonRef.current.replaceChildren();
@@ -53,12 +48,6 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
         logo_alignment: "left",
         width: 280,
       });
-      if (!hasPromptedRef.current) {
-        hasPromptedRef.current = true;
-        window.google.accounts.id.prompt(() => {
-          onPromptFinishedRef.current();
-        });
-      }
     };
 
     if (window.google?.accounts?.id) {
@@ -76,7 +65,6 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
 
     return () => {
       cancelled = true;
-      window.clearTimeout(promptTimeout);
       script?.removeEventListener("load", renderButton);
     };
   }, []);
@@ -84,7 +72,7 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
   return <div className="google-sign-in-button" ref={buttonRef} />;
 }
 
-function SignInPage({ auth, onCredential, onPromptFinished }) {
+function SignInPage({ auth, onCredential }) {
   const restoring = auth.status === "restoring";
 
   return (
@@ -103,23 +91,22 @@ function SignInPage({ auth, onCredential, onPromptFinished }) {
             <p>Sign in with Google to view your service dashboards.</p>
           </>
         )}
-        <div className={`sign-in-action${restoring ? " sign-in-action--restoring" : ""}`}>
-          {!restoring && auth.status === "loading" && (
-            <span className="sign-in-loading">Signing in and loading dashboards…</span>
-          )}
-          <div className={[
-            "sign-in-google-button",
-            restoring ? "sign-in-google-button--restoring" : "",
-            auth.status === "loading" ? "sign-in-google-button--hidden" : "",
-          ].filter(Boolean).join(" ")}>
-            <GoogleSignIn onCredential={onCredential} onPromptFinished={onPromptFinished} />
+        {!restoring && (
+          <div className="sign-in-action">
+            {["loading", "signingOut"].includes(auth.status) && (
+              <span className="sign-in-loading">
+                {auth.status === "signingOut" ? "Signing out…" : "Signing in and loading dashboards…"}
+              </span>
+            )}
+            <div className={`sign-in-google-button${["loading", "signingOut"].includes(auth.status) ? " sign-in-google-button--hidden" : ""}`}>
+              <GoogleSignIn onCredential={onCredential} />
+            </div>
           </div>
-        </div>
+        )}
         {!restoring && auth.error && <div className="admin-error sign-in-error" role="alert">{auth.error}</div>}
-        {!restoring && (!GOOGLE_CLIENT_ID || !APPS_SCRIPT_API_URL) && (
+        {!restoring && !GOOGLE_CLIENT_ID && (
           <p className="sign-in-setup-note">
-            Setup is incomplete. Configure the Google OAuth client ID and deployed Apps Script API
-            URL in the Vercel project settings.
+            Setup is incomplete. Configure VITE_GOOGLE_CLIENT_ID in the deployment environment.
           </p>
         )}
         {!restoring && (
@@ -133,7 +120,7 @@ function SignInPage({ auth, onCredential, onPromptFinished }) {
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [auth, setAuth] = useState({
-    status: GOOGLE_CLIENT_ID && APPS_SCRIPT_API_URL ? "restoring" : "signedOut",
+    status: "restoring",
     error: "",
   });
   const location = useLocation();
@@ -144,6 +131,29 @@ function AppLayout() {
   const selectedService = services.find((service) => service.id === selectedServiceId);
   const isAdminPage = location.pathname === "/admin";
   const pageTitle = isAdminPage ? "Manage services" : selectedService?.name || "Overview";
+
+  useEffect(() => {
+    let cancelled = false;
+    restorePortalSession()
+      .then((session) => {
+        if (!cancelled) {
+          setAuth({ status: "signedIn", ...session, error: "" });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setAuth({
+            status: "signedOut",
+            error: error.message.includes("(401)")
+              ? ""
+              : error.message,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!sidebarOpen) {
@@ -162,33 +172,18 @@ function AppLayout() {
   const handleCredential = async (credential) => {
     setAuth({ status: "loading", error: "" });
     try {
-      const session = await getPortalServices(credential);
-      setAuth({
-        status: "signedIn",
-        credential,
-        email: session.email,
-        role: session.role,
-        services: session.services,
-        error: "",
-      });
+      const session = await createPortalSession(credential);
+      setAuth({ status: "signedIn", ...session, error: "" });
     } catch (error) {
       setAuth({ status: "error", error: error.message });
     }
-  };
-
-  const handlePromptFinished = () => {
-    setAuth((current) => (
-      current.status === "restoring"
-        ? { status: "signedOut", error: "" }
-        : current
-    ));
   };
 
   const handleSaveServices = async (nextServices) => {
     if (auth.status !== "signedIn" || auth.role !== "admin") {
       throw new Error("Only an authorized administrator can manage services.");
     }
-    const result = await savePortalServices(auth.credential, nextServices);
+    const result = await savePortalServices(nextServices);
     setAuth((current) => ({
       ...current,
       services: result.services,
@@ -196,9 +191,15 @@ function AppLayout() {
     return result.services;
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     window.google?.accounts?.id?.disableAutoSelect();
-    setAuth({ status: "signedOut", error: "" });
+    setAuth({ status: "signingOut", error: "" });
+    try {
+      await destroyPortalSession();
+      setAuth({ status: "signedOut", error: "" });
+    } catch (error) {
+      setAuth({ status: "signedOut", error: error.message });
+    }
   };
 
   if (auth.status !== "signedIn") {
@@ -206,7 +207,6 @@ function AppLayout() {
       <SignInPage
         auth={auth}
         onCredential={handleCredential}
-        onPromptFinished={handlePromptFinished}
       />
     );
   }
