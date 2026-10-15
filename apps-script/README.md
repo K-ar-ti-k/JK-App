@@ -40,6 +40,11 @@ The login accepts any verified Google account as a viewer. Server-side code in
 or revoke management access, update that list and create a new Apps Script
 deployment version.
 
+The portal asks Google to automatically restore a returning user's sign-in when
+Google can verify the existing browser session. The portal does not save Google
+ID tokens in browser storage; if Google cannot restore the session, use the
+Google sign-in button again. **Sign out** disables automatic sign-in.
+
 ## Verify
 
 Sign in at the deployed portal. Confirm that a normal Google account can see

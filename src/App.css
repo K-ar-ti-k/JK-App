@@ -1758,6 +1758,16 @@ p {
   justify-content: center;
 }
 
+.sign-in-google-button {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+}
+
+.sign-in-google-button--hidden {
+  display: none;
+}
+
 .sign-in-loading {
   color: #666c82;
   font-size: 11px;

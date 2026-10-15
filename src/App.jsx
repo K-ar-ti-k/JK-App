@@ -10,13 +10,19 @@ import { getPortalServices, savePortalServices } from "./services/dashboardServi
 import { APPS_SCRIPT_API_URL, GOOGLE_CLIENT_ID } from "./services/portalApi";
 import "./App.css";
 
-function GoogleSignIn({ onCredential }) {
+function GoogleSignIn({ onCredential, onPromptFinished }) {
   const buttonRef = useRef(null);
   const onCredentialRef = useRef(onCredential);
+  const onPromptFinishedRef = useRef(onPromptFinished);
+  const hasPromptedRef = useRef(false);
 
   useEffect(() => {
     onCredentialRef.current = onCredential;
   }, [onCredential]);
+
+  useEffect(() => {
+    onPromptFinishedRef.current = onPromptFinished;
+  }, [onPromptFinished]);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) {
@@ -31,6 +37,7 @@ function GoogleSignIn({ onCredential }) {
       }
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
+        auto_select: true,
         callback: (response) => onCredentialRef.current(response.credential),
       });
       buttonRef.current.replaceChildren();
@@ -43,6 +50,12 @@ function GoogleSignIn({ onCredential }) {
         logo_alignment: "left",
         width: 280,
       });
+      if (!hasPromptedRef.current) {
+        hasPromptedRef.current = true;
+        window.google.accounts.id.prompt(() => {
+          onPromptFinishedRef.current();
+        });
+      }
     };
 
     if (window.google?.accounts?.id) {
@@ -67,7 +80,7 @@ function GoogleSignIn({ onCredential }) {
   return <div className="google-sign-in-button" ref={buttonRef} />;
 }
 
-function SignInPage({ auth, onCredential }) {
+function SignInPage({ auth, onCredential, onPromptFinished }) {
   return (
     <main className="sign-in-page">
       <section className="sign-in-card">
@@ -76,11 +89,15 @@ function SignInPage({ auth, onCredential }) {
         <h1>Welcome to JK Foundry</h1>
         <p>Sign in with Google to view your service dashboards.</p>
         <div className="sign-in-action">
-          {auth.status === "loading" ? (
-            <span className="sign-in-loading">Signing in and loading dashboards…</span>
-          ) : (
-            <GoogleSignIn onCredential={onCredential} />
+          {auth.status === "restoring" && (
+            <span className="sign-in-loading">Restoring your Google sign-in…</span>
           )}
+          {auth.status === "loading" && (
+            <span className="sign-in-loading">Signing in and loading dashboards…</span>
+          )}
+          <div className={`sign-in-google-button${auth.status === "loading" ? " sign-in-google-button--hidden" : ""}`}>
+            <GoogleSignIn onCredential={onCredential} onPromptFinished={onPromptFinished} />
+          </div>
         </div>
         {auth.error && <div className="admin-error sign-in-error" role="alert">{auth.error}</div>}
         {(!GOOGLE_CLIENT_ID || !APPS_SCRIPT_API_URL) && (
@@ -97,7 +114,10 @@ function SignInPage({ auth, onCredential }) {
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [auth, setAuth] = useState({ status: "signedOut", error: "" });
+  const [auth, setAuth] = useState({
+    status: GOOGLE_CLIENT_ID && APPS_SCRIPT_API_URL ? "restoring" : "signedOut",
+    error: "",
+  });
   const location = useLocation();
   const services = auth.status === "signedIn" ? auth.services : [];
   const selectedServiceId = location.pathname.startsWith("/services/")
@@ -138,6 +158,14 @@ function AppLayout() {
     }
   };
 
+  const handlePromptFinished = () => {
+    setAuth((current) => (
+      current.status === "restoring"
+        ? { status: "signedOut", error: "" }
+        : current
+    ));
+  };
+
   const handleSaveServices = async (nextServices) => {
     if (auth.status !== "signedIn" || auth.role !== "admin") {
       throw new Error("Only an authorized administrator can manage services.");
@@ -156,7 +184,13 @@ function AppLayout() {
   };
 
   if (auth.status !== "signedIn") {
-    return <SignInPage auth={auth} onCredential={handleCredential} />;
+    return (
+      <SignInPage
+        auth={auth}
+        onCredential={handleCredential}
+        onPromptFinished={handlePromptFinished}
+      />
+    );
   }
 
   return (
