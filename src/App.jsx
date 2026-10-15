@@ -248,7 +248,7 @@ function AppLayout() {
 
         <main className={selectedService ? "page-content page-content--embed" : "page-content"}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Dashboard services={services} />} />
             <Route
               path="/admin"
               element={
