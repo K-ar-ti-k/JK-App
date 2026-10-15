@@ -1,4 +1,5 @@
 import {
+  CloseRounded,
   DashboardRounded,
   DashboardCustomizeRounded,
   TuneRounded,
@@ -21,15 +22,25 @@ export default function Sidebar({ open, onClose, services, role }) {
         className={`sidebar${open ? " sidebar--open" : ""}`}
         id="primary-navigation"
       >
-        <NavLink className="brand" to="/" onClick={onClose}>
-          <span className="brand-mark brand-mark--image">
-            <img alt="" src="/app-icon-192.png" />
-          </span>
-          <span className="brand-copy">
-            <strong>JK Foundry</strong>
-            <small>POSTAL OPERATIONS</small>
-          </span>
-        </NavLink>
+        <div className="sidebar-header">
+          <NavLink className="brand" to="/" onClick={onClose}>
+            <span className="brand-mark brand-mark--image">
+              <img alt="" src="/app-icon-192.png" />
+            </span>
+            <span className="brand-copy">
+              <strong>JK Foundry</strong>
+              <small>POSTAL OPERATIONS</small>
+            </span>
+          </NavLink>
+          <button
+            aria-label="Close navigation"
+            className="sidebar-close-button"
+            onClick={onClose}
+            type="button"
+          >
+            <CloseRounded />
+          </button>
+        </div>
 
         <div className="sidebar-section sidebar-workspace">
           <span className="sidebar-label">WORKSPACE</span>

@@ -288,7 +288,13 @@ function Dashboard({ services }) {
           </div>
         </div>
         {isLoaded && orderSummary.recentOrders.length > 0 ? (
-          <div className="table-scroll">
+          <div
+            aria-label="Recent order activity"
+            className="table-scroll"
+            role="region"
+            tabIndex={0}
+          >
+            <p className="table-scroll-hint">Swipe to see all columns</p>
             <table className="orders-table overview-order-table">
               <thead>
                 <tr><th>ORDER</th><th>CLIENT</th><th>ORDER DATE</th><th>PROMISED</th><th>PENDING KG</th><th>STATUS</th></tr>
