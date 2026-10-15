@@ -30,6 +30,9 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
     }
 
     let cancelled = false;
+    const promptTimeout = window.setTimeout(() => {
+      onPromptFinishedRef.current();
+    }, 12000);
     let script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
     const renderButton = () => {
       if (cancelled || !buttonRef.current || !window.google?.accounts?.id) {
@@ -73,6 +76,7 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(promptTimeout);
       script?.removeEventListener("load", renderButton);
     };
   }, []);
@@ -81,32 +85,46 @@ function GoogleSignIn({ onCredential, onPromptFinished }) {
 }
 
 function SignInPage({ auth, onCredential, onPromptFinished }) {
+  const restoring = auth.status === "restoring";
+
   return (
-    <main className="sign-in-page">
-      <section className="sign-in-card">
+    <main className={`sign-in-page${restoring ? " sign-in-page--restoring" : ""}`}>
+      <section aria-live="polite" className={`sign-in-card${restoring ? " sign-in-card--restoring" : ""}`}>
         <div className="brand-mark sign-in-mark"><span>JK</span></div>
-        <div className="eyebrow"><span className="live-dot" /> POSTAL OPERATIONS</div>
-        <h1>Welcome to JK Foundry</h1>
-        <p>Sign in with Google to view your service dashboards.</p>
-        <div className="sign-in-action">
-          {auth.status === "restoring" && (
-            <span className="sign-in-loading">Restoring your Google sign-in…</span>
-          )}
-          {auth.status === "loading" && (
+        {restoring ? (
+          <div className="session-restore-status" role="status">
+            <span className="session-restore-spinner" />
+            <span>Restoring your session…</span>
+          </div>
+        ) : (
+          <>
+            <div className="eyebrow"><span className="live-dot" /> POSTAL OPERATIONS</div>
+            <h1>Welcome to JK Foundry</h1>
+            <p>Sign in with Google to view your service dashboards.</p>
+          </>
+        )}
+        <div className={`sign-in-action${restoring ? " sign-in-action--restoring" : ""}`}>
+          {!restoring && auth.status === "loading" && (
             <span className="sign-in-loading">Signing in and loading dashboards…</span>
           )}
-          <div className={`sign-in-google-button${auth.status === "loading" ? " sign-in-google-button--hidden" : ""}`}>
+          <div className={[
+            "sign-in-google-button",
+            restoring ? "sign-in-google-button--restoring" : "",
+            auth.status === "loading" ? "sign-in-google-button--hidden" : "",
+          ].filter(Boolean).join(" ")}>
             <GoogleSignIn onCredential={onCredential} onPromptFinished={onPromptFinished} />
           </div>
         </div>
-        {auth.error && <div className="admin-error sign-in-error" role="alert">{auth.error}</div>}
-        {(!GOOGLE_CLIENT_ID || !APPS_SCRIPT_API_URL) && (
+        {!restoring && auth.error && <div className="admin-error sign-in-error" role="alert">{auth.error}</div>}
+        {!restoring && (!GOOGLE_CLIENT_ID || !APPS_SCRIPT_API_URL) && (
           <p className="sign-in-setup-note">
             Setup is incomplete. Configure the Google OAuth client ID and deployed Apps Script API
             URL in the Vercel project settings.
           </p>
         )}
-        <span className="sign-in-security">Your access is checked securely by the JK Foundry services API.</span>
+        {!restoring && (
+          <span className="sign-in-security">Your access is checked securely by the JK Foundry services API.</span>
+        )}
       </section>
     </main>
   );

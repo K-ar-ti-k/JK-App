@@ -1716,6 +1716,51 @@ p {
   text-align: center;
 }
 
+.sign-in-page--restoring {
+  background:
+    radial-gradient(ellipse at 50% 0%, #e8ebff 0, transparent 47%),
+    #f6f7fb;
+}
+
+.sign-in-card--restoring {
+  width: auto;
+  min-width: 210px;
+  gap: 16px;
+  padding: 24px;
+}
+
+.session-restore-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #666c82;
+  font-size: 11px;
+}
+
+.session-restore-spinner {
+  width: 17px;
+  height: 17px;
+  border: 2px solid #e5e8f5;
+  border-top-color: #5268e8;
+  border-radius: 50%;
+  animation: session-restore-spin .8s linear infinite;
+}
+
+@keyframes session-restore-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sign-in-action--restoring {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .sign-in-mark {
   width: 50px;
   height: 50px;
