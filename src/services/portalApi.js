@@ -23,7 +23,9 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(result?.error || `The portal API request failed (${response.status}).`);
+    const error = new Error(result?.error || `The portal API request failed (${response.status}).`);
+    error.statusCode = response.status;
+    throw error;
   }
   return result;
 }

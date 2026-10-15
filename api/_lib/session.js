@@ -14,7 +14,10 @@ function cookieSettings() {
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) {
-    throw new Error(`Server configuration is missing ${name}.`);
+    const error = new Error(`Server configuration is missing ${name}.`);
+    error.statusCode = 503;
+    error.publicMessage = `Server setup is incomplete: Vercel is missing the ${name} environment variable.`;
+    throw error;
   }
   return value;
 }
@@ -23,7 +26,10 @@ function sessionSettings() {
   const rawTtl = process.env.SESSION_TTL_SECONDS || String(DEFAULT_SESSION_TTL_SECONDS);
   const ttl = Number(rawTtl);
   if (!Number.isInteger(ttl) || ttl < 60 || ttl > MAX_SESSION_TTL_SECONDS) {
-    throw new Error("SESSION_TTL_SECONDS must be between 60 and 2592000.");
+    const error = new Error("SESSION_TTL_SECONDS must be between 60 and 2592000.");
+    error.statusCode = 503;
+    error.publicMessage = "SESSION_TTL_SECONDS must be between 60 seconds and 30 days (2592000).";
+    throw error;
   }
   return {
     ttl,
@@ -89,7 +95,9 @@ export function fail(res, error) {
     console.error("Portal API request failed:", error);
   }
   sendJson(res, status, {
-    error: status >= 500 ? "The portal could not complete the request." : error.message,
+    error: error.publicMessage || (status >= 500
+      ? "The portal could not complete the request. Check the Vercel Function logs for details."
+      : error.message),
   });
 }
 
@@ -98,17 +106,36 @@ async function redisCommand(command) {
   if (endpoint.protocol !== "https:") {
     throw new Error("UPSTASH_REDIS_REST_URL must use HTTPS.");
   }
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${requiredEnv("UPSTASH_REDIS_REST_TOKEN")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(command),
-  });
-  const result = await response.json();
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${requiredEnv("UPSTASH_REDIS_REST_TOKEN")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(command),
+    });
+  } catch (cause) {
+    const error = new Error("The Upstash Redis request could not be reached.", { cause });
+    error.statusCode = 503;
+    error.publicMessage = "The session store could not be reached. Check the Upstash URL and Vercel network settings.";
+    throw error;
+  }
+  let result;
+  try {
+    result = await response.json();
+  } catch (cause) {
+    const error = new Error("Upstash returned an invalid response.", { cause });
+    error.statusCode = 502;
+    error.publicMessage = "Upstash returned an invalid response. Check the Redis integration settings.";
+    throw error;
+  }
   if (!response.ok || result.error) {
-    throw new Error("The session store request failed.");
+    const error = new Error(`Upstash Redis rejected a session command (${response.status}).`);
+    error.statusCode = 503;
+    error.publicMessage = "Upstash rejected the session request. Verify the Redis REST URL, token, and database status.";
+    throw error;
   }
   return result.result;
 }
@@ -195,7 +222,10 @@ export function setClearSessionCookie(res) {
 function appsScriptSecret() {
   const secret = requiredEnv("PORTAL_SHARED_SECRET");
   if (secret.length < 32) {
-    throw new Error("PORTAL_SHARED_SECRET must be at least 32 characters.");
+    const error = new Error("PORTAL_SHARED_SECRET must be at least 32 characters.");
+    error.statusCode = 503;
+    error.publicMessage = "PORTAL_SHARED_SECRET must contain at least 32 characters and match the Apps Script Script Property.";
+    throw error;
   }
   return secret;
 }
@@ -220,31 +250,53 @@ function signedParameters(action, email, servicesJson = "") {
 export async function callAppsScript(action, email, services = undefined) {
   const endpoint = new URL(requiredEnv("APPS_SCRIPT_API_URL"));
   if (endpoint.protocol !== "https:" || endpoint.hostname !== "script.google.com") {
-    throw new Error("APPS_SCRIPT_API_URL must be a deployed HTTPS Apps Script URL.");
+    const error = new Error("APPS_SCRIPT_API_URL must be a deployed HTTPS Apps Script URL.");
+    error.statusCode = 503;
+    error.publicMessage = "Vercel's APPS_SCRIPT_API_URL must be the deployed HTTPS Apps Script /exec URL.";
+    throw error;
   }
   const servicesJson = services === undefined ? "" : JSON.stringify(services);
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-    body: signedParameters(action, email, servicesJson),
-    redirect: "follow",
-  });
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: signedParameters(action, email, servicesJson),
+      redirect: "follow",
+    });
+  } catch (cause) {
+    const error = new Error("The Apps Script endpoint could not be reached.", { cause });
+    error.statusCode = 502;
+    error.publicMessage = "The Apps Script endpoint could not be reached. Check the deployed /exec URL and deployment availability.";
+    throw error;
+  }
   const text = await response.text();
   let result;
   try {
     result = JSON.parse(text);
-  } catch {
-    throw new Error("Apps Script returned an invalid response.");
+  } catch (cause) {
+    const error = new Error(`Apps Script returned a non-JSON response (${response.status}).`, { cause });
+    error.statusCode = 502;
+    error.publicMessage = "Apps Script did not return JSON. Deploy the latest Code.gs as a Web app with access set to Anyone, then check APPS_SCRIPT_API_URL.";
+    throw error;
   }
   if (!response.ok || !result?.ok) {
-    throw new Error(result?.error || "Apps Script could not complete the request.");
+    const error = new Error(result?.error || `Apps Script request failed (${response.status}).`);
+    error.statusCode = 502;
+    error.publicMessage = result?.error
+      ? `Apps Script rejected the request: ${result.error}`
+      : `Apps Script request failed (${response.status}). Check its deployment and execution log.`;
+    throw error;
   }
   if (
     result.email !== email ||
     !["admin", "user"].includes(result.role) ||
     !Array.isArray(result.services)
   ) {
-    throw new Error("Apps Script returned an invalid user or services response.");
+    const error = new Error("Apps Script returned an invalid user or services response.");
+    error.statusCode = 502;
+    error.publicMessage = "Apps Script returned an unexpected response. Confirm the latest Code.gs version is deployed.";
+    throw error;
   }
   return result;
 }
@@ -258,10 +310,19 @@ export async function verifyGoogleCredential(credential) {
   const clientId = requiredEnv("GOOGLE_CLIENT_ID");
   const endpoint = new URL("https://oauth2.googleapis.com/tokeninfo");
   endpoint.searchParams.set("id_token", credential);
-  const response = await fetch(endpoint);
+  let response;
+  try {
+    response = await fetch(endpoint);
+  } catch (cause) {
+    const error = new Error("Google token verification could not be reached.", { cause });
+    error.statusCode = 502;
+    error.publicMessage = "Google could not be reached to verify sign-in. Please retry in a moment.";
+    throw error;
+  }
   if (!response.ok) {
     const error = new Error("Google sign-in expired or could not be verified. Sign in again.");
     error.statusCode = 401;
+    error.publicMessage = error.message;
     throw error;
   }
   const claims = await response.json();
@@ -276,6 +337,7 @@ export async function verifyGoogleCredential(credential) {
   ) {
     const error = new Error("Google could not verify this account for the portal.");
     error.statusCode = 401;
+    error.publicMessage = error.message;
     throw error;
   }
   return claims.email.toLowerCase();

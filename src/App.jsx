@@ -144,7 +144,7 @@ function AppLayout() {
         if (!cancelled) {
           setAuth({
             status: "signedOut",
-            error: error.message.includes("(401)")
+            error: error.statusCode === 401
               ? ""
               : error.message,
           });
