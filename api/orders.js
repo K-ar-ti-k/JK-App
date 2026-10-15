@@ -5,7 +5,7 @@ import {
   sendJson,
 } from "./_lib/session.js";
 
-const ORDER_STATUS_API_URL = "https://script.google.com/macros/s/AKfycbyy9RXEOafUAVQRML2kpyRhxzBL6JHlEXijAhNcyxZe9eK0ehazbpc_a76pkOL9wkjF/exec";
+const ORDER_STATUS_API_URL = "https://script.google.com/macros/s/AKfycbxKP_mVAL7GvXTyr1tcTi_Bmw1Qr2X181N8BS31uOJNqsZSuTt2bMB77iC9dxRmNRFucQ/exec?api=orders";
 const ALLOWED_RESPONSE_HOSTS = new Set(["script.google.com", "script.googleusercontent.com"]);
 const MAX_ORDER_RECORDS = 25000;
 
@@ -86,6 +86,9 @@ export default async function handler(req, res) {
       throw unavailable(`The Order Status API returned HTTP ${response.status}.`);
     }
     const finalUrl = new URL(response.url);
+    if (finalUrl.hostname === "accounts.google.com") {
+      throw unavailable("The Order Status API redirected to Google sign-in. The Apps Script JSON endpoint must allow the portal backend to access it.");
+    }
     if (finalUrl.protocol !== "https:" || !ALLOWED_RESPONSE_HOSTS.has(finalUrl.hostname)) {
       throw unavailable("The Order Status API redirected to an unexpected destination.");
     }
