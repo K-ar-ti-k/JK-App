@@ -6,7 +6,7 @@ import {
   sendJson,
 } from "./_lib/session.js";
 
-const ORDER_STATUS_API_URL = "https://script.google.com/macros/s/AKfycbxKP_mVAL7GvXTyr1tcTi_Bmw1Qr2X181N8BS31uOJNqsZSuTt2bMB77iC9dxRmNRFucQ/exec?api=orders";
+const ORDER_STATUS_API_URL = "https://script.google.com/a/macros/jkfoundries.com/s/AKfycbyy9RXEOafUAVQRML2kpyRhxzBL6JHlEXijAhNcyxZe9eK0ehazbpc_a76pkOL9wkjF/exec?api=orders";
 const ALLOWED_RESPONSE_HOSTS = new Set(["script.google.com", "script.googleusercontent.com"]);
 const MAX_ORDER_RECORDS = 25000;
 
@@ -88,15 +88,20 @@ export default async function handler(req, res) {
       clearTimeout(timeout);
     }
 
-    if (!response.ok) {
-      throw unavailable(`The Order Status API returned HTTP ${response.status}.`);
-    }
     const finalUrl = new URL(response.url);
     if (finalUrl.hostname === "accounts.google.com") {
       throw unavailable("The Order Status API redirected to Google sign-in. Deploy its web app with access set to Anyone; the signed request still protects order data.");
     }
     if (finalUrl.protocol !== "https:" || !ALLOWED_RESPONSE_HOSTS.has(finalUrl.hostname)) {
       throw unavailable("The Order Status API redirected to an unexpected destination.");
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw unavailable(
+        `Google rejected the Order Status deployment request (HTTP ${response.status}). Verify the deployed /exec URL, deploy the latest version as a web app, and set access to Anyone.`,
+      );
+    }
+    if (!response.ok) {
+      throw unavailable(`The Order Status API returned HTTP ${response.status}.`);
     }
 
     let result;
